@@ -61,14 +61,16 @@ class NewsApiService extends BaseNewsService
             'external_id' => md5($rawArticle['url'] ?? Str::random(32)),
             'source' => $this->getSourceName(),
             'source_name' => $rawArticle['source']['name'] ?? 'NewsAPI',
-            'author' => $rawArticle['author'] ?? null,
+            'author_name' => $rawArticle['author'] ?? null,
             'title' => $rawArticle['title'] ?? '',
             'description' => $rawArticle['description'] ?? null,
             'content' => $rawArticle['content'] ?? null,
             'url' => $rawArticle['url'] ?? '',
             'image_url' => $rawArticle['urlToImage'] ?? null,
-            'category' => $rawArticle['category'] ?? 'general',
-            'published_at' => isset($rawArticle['publishedAt']) ? date('Y-m-d H:i:s', strtotime($rawArticle['publishedAt'])) : now(),
+            'categories' => [$rawArticle['category'] ?? 'general'],
+            'published_at' => isset($rawArticle['publishedAt'])
+                ? date('Y-m-d H:i:s', strtotime($rawArticle['publishedAt']))
+                : now(),
         ];
     }
 
@@ -80,6 +82,12 @@ class NewsApiService extends BaseNewsService
      */
     public function fetchByCategory(string $category): array
     {
-        return $this->fetchArticles(['category' => $category]);
+        $articles = $this->fetchArticles(['category' => $category]);
+
+        foreach ($articles as &$article) {
+            $article['categories'] = [$category];
+        }
+
+        return $articles;
     }
 }

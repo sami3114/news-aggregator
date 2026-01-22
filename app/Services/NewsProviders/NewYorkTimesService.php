@@ -43,13 +43,13 @@ class NewYorkTimesService extends BaseNewsService
             'external_id' => $rawArticle['uri'] ?? md5($rawArticle['url'] ?? Str::random(32)),
             'source' => $this->getSourceName(),
             'source_name' => 'The New York Times',
-            'author' => $rawArticle['byline'] ?? null,
+            'author_name' => $rawArticle['byline'] ?? null,
             'title' => $rawArticle['title'] ?? '',
             'description' => $rawArticle['abstract'] ?? null,
             'content' => $rawArticle['abstract'] ?? null,
             'url' => $rawArticle['url'] ?? '',
             'image_url' => $this->extractImageUrl($rawArticle),
-            'category' => $this->mapCategory($rawArticle['section'] ?? 'news'),
+            'categories' => [$this->mapCategory($rawArticle['section'] ?? 'news')],
             'published_at' => isset($rawArticle['published_date'])
                 ? date('Y-m-d H:i:s', strtotime($rawArticle['published_date']))
                 : now(),

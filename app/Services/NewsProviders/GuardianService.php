@@ -2,6 +2,8 @@
 
 namespace App\Services\NewsProviders;
 
+use Illuminate\Support\Str;
+
 class GuardianService extends BaseNewsService
 {
     /**
@@ -64,17 +66,22 @@ class GuardianService extends BaseNewsService
             'external_id' => $rawArticle['id'] ?? md5(Str::random(32)),
             'source' => $this->getSourceName(),
             'source_name' => 'The Guardian',
-            'author' => $fields['byline'] ?? null,
+            'author_name' => $fields['byline'] ?? null,
             'title' => $fields['headline'] ?? $rawArticle['webTitle'] ?? '',
             'description' => $fields['trailText'] ?? null,
             'content' => $this->cleanContent($fields['body'] ?? null),
             'url' => $rawArticle['webUrl'] ?? '',
             'image_url' => $fields['thumbnail'] ?? null,
-            'category' => $this->mapCategory($rawArticle['sectionId'] ?? 'news'),
-            'published_at' => isset($rawArticle['webPublicationDate']) ? date('Y-m-d H:i:s', strtotime($rawArticle['webPublicationDate'])) : now(),
+            'categories' => [$this->mapCategory($rawArticle['sectionId'] ?? 'news')],
+            'published_at' => isset($rawArticle['webPublicationDate'])
+                ? date('Y-m-d H:i:s', strtotime($rawArticle['webPublicationDate']))
+                : now(),
         ];
     }
 
+    /**
+     * Clean HTML content
+     */
     protected function cleanContent(?string $content): ?string
     {
         if (!$content) {
@@ -83,7 +90,6 @@ class GuardianService extends BaseNewsService
 
         return strip_tags($content);
     }
-
 
     /**
      * Map Guardian section to standard category
