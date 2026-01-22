@@ -10,45 +10,37 @@ interface ArticleRepositoryInterface
      * Get all articles.
      *
      * @param array $filters
-     * @param int $perPage
+     * @param int|null $perPage
      * @return LengthAwarePaginator
      */
-    public function getAll(array $filters = [], int $perPage = 20):LengthAwarePaginator;
+    public function getAll(array $filters = [], ?int $perPage = null): LengthAwarePaginator;
 
     /**
-     * Find article by id.
+     * Bulk upsert articles with authors and categories
      *
-     * @param int $id
-     * @return mixed
+     * @param array $articlesData
+     * @return int Number of articles processed
      */
-    public function findById(int $id);
+    public function bulkUpsert(array $articlesData): int;
 
     /**
-     * Create or update article.
-     *
-     * @param array $data
-     * @return mixed
-     */
-    public function createOrUpdate(array $data);
-
-    /**
-     * Search articles.
+     * Search articles
      *
      * @param string $query
      * @param array $filters
-     * @param int $perPage
+     * @param int|null $perPage
      * @return LengthAwarePaginator
      */
-    public function search(string $query, array $filters = [], int $perPage = 15): LengthAwarePaginator;
+    public function search(string $query, array $filters = [], ?int $perPage = null): LengthAwarePaginator;
 
     /**
-     * Get articles by preferences.
+     * Get articles by user preferences
      *
      * @param array $preferences
-     * @param int $perPage
+     * @param int|null $perPage
      * @return LengthAwarePaginator
      */
-    public function getByPreferences(array $preferences, int $perPage = 15): LengthAwarePaginator;
+    public function getByPreferences(array $preferences, ?int $perPage = null): LengthAwarePaginator;
 
     /**
      * Get all categories.

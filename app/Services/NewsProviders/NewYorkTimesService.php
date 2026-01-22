@@ -43,7 +43,7 @@ class NewYorkTimesService extends BaseNewsService
             'external_id' => $rawArticle['uri'] ?? md5($rawArticle['url'] ?? Str::random(32)),
             'source' => $this->getSourceName(),
             'source_name' => 'The New York Times',
-            'author_name' => $rawArticle['byline'] ?? null,
+            'author_name' => $this->cleanByline($rawArticle['byline'] ?? null),
             'title' => $rawArticle['title'] ?? '',
             'description' => $rawArticle['abstract'] ?? null,
             'content' => $rawArticle['abstract'] ?? null,
@@ -54,6 +54,19 @@ class NewYorkTimesService extends BaseNewsService
                 ? date('Y-m-d H:i:s', strtotime($rawArticle['published_date']))
                 : now(),
         ];
+    }
+
+    /**
+     * Clean byline text (remove "By " prefix)
+     */
+    protected function cleanByline(?string $byline): ?string
+    {
+        if (!$byline) {
+            return null;
+        }
+
+        // Remove "By " prefix if present
+        return preg_replace('/^By\s+/i', '', $byline);
     }
 
     /**
@@ -113,5 +126,97 @@ class NewYorkTimesService extends BaseNewsService
         ];
 
         return $categoryMap[$section] ?? 'general';
+    }
+
+    /**
+     * Fetch articles by section
+     *
+     * @param string $section
+     * @return array
+     */
+    public function fetchBySection(string $section): array
+    {
+        $endpoint = "topstories/v2/{$section}.json";
+        $response = $this->makeRequest($endpoint, $this->buildParams([]));
+
+        if (!$response) {
+            return [];
+        }
+
+        $articles = $this->extractArticles($response);
+
+        return array_map(fn($article) => $this->transformArticle($article), $articles);
+    }
+
+    /**
+     * Search articles using Article Search API
+     *
+     * @param string $query
+     * @param array $params
+     * @return array
+     */
+    public function searchArticles(string $query, array $params = []): array
+    {
+        $requestParams = [
+            'api-key' => $this->apiKey,
+            'q' => $query,
+            'sort' => $params['sort'] ?? 'newest',
+        ];
+
+        if (!empty($params['begin_date'])) {
+            $requestParams['begin_date'] = $params['begin_date'];
+        }
+
+        if (!empty($params['end_date'])) {
+            $requestParams['end_date'] = $params['end_date'];
+        }
+
+        if (!empty($params['fq'])) {
+            $requestParams['fq'] = $params['fq'];
+        }
+
+        $response = $this->makeRequest('search/v2/articlesearch.json', $requestParams);
+
+        if (!$response) {
+            return [];
+        }
+
+        $docs = $response['response']['docs'] ?? [];
+
+        return array_map(fn($doc) => $this->transformSearchResult($doc), $docs);
+    }
+
+    /**
+     * Transform article search result
+     */
+    protected function transformSearchResult(array $doc): array
+    {
+        $multimedia = $doc['multimedia'] ?? [];
+        $imageUrl = null;
+
+        if (!empty($multimedia)) {
+            foreach ($multimedia as $media) {
+                if (isset($media['type']) && $media['type'] === 'image') {
+                    $imageUrl = 'https://www.nytimes.com/' . $media['url'];
+                    break;
+                }
+            }
+        }
+
+        return [
+            'external_id' => $doc['_id'] ?? md5(Str::random(32)),
+            'source' => $this->getSourceName(),
+            'source_name' => 'The New York Times',
+            'author_name' => $this->cleanByline($doc['byline']['original'] ?? null),
+            'title' => $doc['headline']['main'] ?? '',
+            'description' => $doc['abstract'] ?? $doc['lead_paragraph'] ?? null,
+            'content' => $doc['lead_paragraph'] ?? null,
+            'url' => $doc['web_url'] ?? '',
+            'image_url' => $imageUrl,
+            'categories' => [$this->mapCategory($doc['section_name'] ?? 'news')],
+            'published_at' => isset($doc['pub_date'])
+                ? date('Y-m-d H:i:s', strtotime($doc['pub_date']))
+                : now(),
+        ];
     }
 }

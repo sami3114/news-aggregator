@@ -4,8 +4,11 @@ namespace App\Repositories;
 
 use App\Contracts\ArticleRepositoryInterface;
 use App\Models\Article;
+use App\Models\Author;
+use App\Models\Category;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ArticleRepository implements ArticleRepositoryInterface
 {
@@ -18,15 +21,13 @@ class ArticleRepository implements ArticleRepositoryInterface
     }
 
     /**
-     * Get all articles with optional filters.
-     *
-     * @param array $filters
-     * @param int $perPage
-     * @return LengthAwarePaginator
+     * Get all articles with optional filters
      */
-    public function getAll(array $filters = [], int $perPage = 20): LengthAwarePaginator
+    public function getAll(array $filters = [], ?int $perPage = null): LengthAwarePaginator
     {
-        $query = $this->model->newQuery();
+        $perPage = $perPage ?? config('pagination.per_page');
+
+        $query = $this->model->newQuery()->with(['author', 'categories']);
 
         $this->applyFilters($query, $filters);
 
@@ -34,44 +35,221 @@ class ArticleRepository implements ArticleRepositoryInterface
     }
 
     /**
-     * Find article by id.
+     * Bulk upsert articles with authors and categories
      *
-     * @param int $id
-     * @return mixed
+     * @param array $articlesData
+     * @return int Number of articles processed
      */
-    public function findById(int $id)
+    public function bulkUpsert(array $articlesData): int
     {
-        return $this->model->findOrFail($id);
+        if (empty($articlesData)) {
+            return 0;
+        }
+
+        // Step 0: Deduplicate articles by external_id (keep last occurrence which has more categories)
+        $articlesData = $this->deduplicateArticles($articlesData);
+
+        return DB::transaction(function () use ($articlesData) {
+            // Step 1: Extract and upsert all unique authors
+            $authorMap = $this->upsertAuthors($articlesData);
+
+            // Step 2: Extract and upsert all unique categories
+            $categoryMap = $this->upsertCategories($articlesData);
+
+            // Step 3: Prepare articles data with author_id
+            $preparedArticles = $this->prepareArticlesForUpsert($articlesData, $authorMap);
+
+            // Step 4: Upsert articles
+            $this->model->upsert(
+                $preparedArticles,
+                ['external_id', 'source'], // Unique columns
+                ['source_name', 'author_id', 'title', 'description', 'content', 'url', 'image_url', 'published_at', 'updated_at'] // Columns to update
+            );
+
+            // Step 5: Sync categories for each article
+            $this->syncArticleCategories($articlesData, $categoryMap);
+
+            return count($articlesData);
+        });
     }
 
     /**
-     * Create or update article.
-     *
-     * @param array $data
-     * @return mixed
+     * Deduplicate articles by external_id, merging categories
      */
-    public function createOrUpdate(array $data)
+    protected function deduplicateArticles(array $articlesData): array
     {
-        return $this->model->updateOrCreate(
-            [
+        $unique = [];
+
+        foreach ($articlesData as $article) {
+            $key = $article['external_id'] . '|' . $article['source'];
+
+            if (isset($unique[$key])) {
+                // Merge categories from duplicate articles
+                $existingCategories = (array) ($unique[$key]['categories'] ?? []);
+                $newCategories = (array) ($article['categories'] ?? []);
+                $unique[$key]['categories'] = array_unique(array_merge($existingCategories, $newCategories));
+            } else {
+                $unique[$key] = $article;
+            }
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * Upsert authors and return slug => id map
+     */
+    protected function upsertAuthors(array $articlesData): array
+    {
+        // Extract unique author names
+        $authorNames = collect($articlesData)
+            ->pluck('author_name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($authorNames)) {
+            return [];
+        }
+
+        // Prepare authors for upsert
+        $authorsToUpsert = array_map(fn($name) => [
+            'name' => $name,
+            'slug' => Str::slug($name),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $authorNames);
+
+        // Upsert authors
+        Author::upsert($authorsToUpsert, ['slug'], ['name', 'updated_at']);
+
+        // Get author map (slug => id)
+        return Author::whereIn('slug', array_column($authorsToUpsert, 'slug'))
+            ->pluck('id', 'slug')
+            ->toArray();
+    }
+
+    /**
+     * Upsert categories and return slug => id map
+     */
+    protected function upsertCategories(array $articlesData): array
+    {
+        // Extract unique category names
+        $categoryNames = collect($articlesData)
+            ->pluck('categories')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($categoryNames)) {
+            return [];
+        }
+
+        // Prepare categories for upsert
+        $categoriesToUpsert = array_map(fn($name) => [
+            'name' => ucfirst($name),
+            'slug' => Str::slug($name),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $categoryNames);
+
+        // Upsert categories
+        Category::upsert($categoriesToUpsert, ['slug'], ['name', 'updated_at']);
+
+        // Get category map (slug => id)
+        return Category::whereIn('slug', array_column($categoriesToUpsert, 'slug'))
+            ->pluck('id', 'slug')
+            ->toArray();
+    }
+
+    /**
+     * Prepare articles data for upsert
+     */
+    protected function prepareArticlesForUpsert(array $articlesData, array $authorMap): array
+    {
+        return array_map(function ($data) use ($authorMap) {
+            $authorSlug = !empty($data['author_name']) ? Str::slug($data['author_name']) : null;
+
+            return [
                 'external_id' => $data['external_id'],
                 'source' => $data['source'],
-            ],
-            $data
-        );
+                'source_name' => $data['source_name'] ?? null,
+                'author_id' => $authorSlug ? ($authorMap[$authorSlug] ?? null) : null,
+                'title' => $data['title'],
+                'description' => $data['description'] ?? null,
+                'content' => $data['content'] ?? null,
+                'url' => $data['url'],
+                'image_url' => $data['image_url'] ?? null,
+                'published_at' => $data['published_at'] ?? now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }, $articlesData);
     }
 
     /**
-     * Search articles by query.
-     *
-     * @param string $query
-     * @param array $filters
-     * @param int $perPage
-     * @return LengthAwarePaginator
+     * Sync categories for articles using insertOrIgnore to handle duplicates
      */
-    public function search(string $query, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    protected function syncArticleCategories(array $articlesData, array $categoryMap): void
     {
-        $articleQuery = $this->model->newQuery();
+        if (empty($categoryMap)) {
+            return;
+        }
+
+        // Get all articles that were just upserted
+        $externalIds = array_column($articlesData, 'external_id');
+        $articles = $this->model->whereIn('external_id', $externalIds)->get(['id', 'external_id']);
+        $articleMap = $articles->pluck('id', 'external_id')->toArray();
+
+        // Get unique article IDs
+        $articleIds = array_values($articleMap);
+
+        // Delete existing relationships for these articles
+        DB::table('article_category')
+            ->whereIn('article_id', $articleIds)
+            ->delete();
+
+        // Prepare pivot data
+        $pivotData = [];
+
+        foreach ($articlesData as $data) {
+            $articleId = $articleMap[$data['external_id']] ?? null;
+            if (!$articleId || empty($data['categories'])) {
+                continue;
+            }
+
+            foreach ((array) $data['categories'] as $categoryName) {
+                $categorySlug = Str::slug($categoryName);
+                $categoryId = $categoryMap[$categorySlug] ?? null;
+
+                if ($categoryId) {
+                    $pivotData[] = [
+                        'article_id' => $articleId,
+                        'category_id' => $categoryId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+        }
+
+        if (!empty($pivotData)) {
+            // Use insertOrIgnore to silently skip duplicates
+            DB::table('article_category')->insertOrIgnore($pivotData);
+        }
+    }
+
+    /**
+     * Search articles by keyword
+     */
+    public function search(string $query, array $filters = [], ?int $perPage = null): LengthAwarePaginator
+    {
+        $perPage = $perPage ?? config('pagination.per_page');
+
+        $articleQuery = $this->model->newQuery()->with(['author', 'categories']);
 
         $articleQuery->search($query);
         $this->applyFilters($articleQuery, $filters);
@@ -81,116 +259,94 @@ class ArticleRepository implements ArticleRepositoryInterface
 
     /**
      * Get articles based on user preferences
-     *
-     * @param array $preferences
-     * @param int $perPage
-     * @return LengthAwarePaginator
      */
-    public function getByPreferences(array $preferences, int $perPage = 15): LengthAwarePaginator
+    public function getByPreferences(array $preferences, ?int $perPage = null): LengthAwarePaginator
     {
-        $query = $this->model->newQuery();
+        $perPage = $perPage ?? config('pagination.per_page');
 
-        if (!empty($preferences['preferred_sources'])) {
-            $query->whereIn('source', $preferences['preferred_sources']);
-        }
+        $query = $this->model->newQuery()->with(['author', 'categories']);
 
-        if (!empty($preferences['preferred_categories'])) {
-            $query->whereIn('category', $preferences['preferred_categories']);
-        }
+        $query->when(!empty($preferences['preferred_sources']), function ($q) use ($preferences) {
+            $q->whereIn('source', $preferences['preferred_sources']);
+        });
 
-        if (!empty($preferences['preferred_authors'])) {
-            $query->where(function ($q) use ($preferences) {
-                foreach ($preferences['preferred_authors'] as $author) {
-                    $q->orWhere('author', 'like', "%{$author}%");
-                }
+        $query->when(!empty($preferences['preferred_categories']), function ($q) use ($preferences) {
+            $q->whereHas('categories', function ($categoryQuery) use ($preferences) {
+                $categoryQuery->whereIn('categories.id', $preferences['preferred_categories']);
             });
-        }
+        });
+
+        $query->when(!empty($preferences['preferred_authors']), function ($q) use ($preferences) {
+            $q->whereIn('author_id', $preferences['preferred_authors']);
+        });
 
         return $query->orderBy('published_at', 'desc')->paginate($perPage);
     }
 
     /**
-     * Get distinct categories from articles.
-     *
-     * @return array
+     * Get all unique categories
      */
     public function getCategories(): array
     {
-        return Cache::remember('article_categories', 3600, function () {
-            return $this->model
-                ->whereNotNull('category')
-                ->where('category', '!=', '')
-                ->distinct()
-                ->pluck('category')
-                ->toArray();
-        });
+        return Category::select('id', 'name', 'slug')
+            ->orderBy('name')
+            ->get()
+            ->toArray();
     }
 
     /**
-     * Get distinct sources from articles.
-     *
-     * @return array
+     * Get all unique sources
      */
     public function getSources(): array
     {
-        return Cache::remember('article_sources', 3600, function () {
-            return $this->model
-                ->select('source', 'source_name')
-                ->distinct()
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'id' => $item->source,
-                        'name' => $item->source_name,
-                    ];
-                })
-                ->toArray();
-        });
+        return $this->model
+            ->select('source', 'source_name')
+            ->distinct()
+            ->get()
+            ->map(fn($item) => [
+                'id' => $item->source,
+                'name' => $item->source_name,
+            ])
+            ->toArray();
     }
 
     /**
-     * Get distinct authors from articles.
-     *
-     * @return array
+     * Get all unique authors
      */
     public function getAuthors(): array
     {
-        return Cache::remember('article_authors', 3600, function () {
-            return $this->model
-                ->whereNotNull('author')
-                ->where('author', '!=', '')
-                ->distinct()
-                ->pluck('author')
-                ->toArray();
-        });
+        return Author::select('id', 'name', 'slug')
+            ->orderBy('name')
+            ->get()
+            ->toArray();
     }
 
     /**
-     * Apply filters to query
+     * Apply filters to query using when()
      */
     protected function applyFilters($query, array $filters): void
     {
-        if (!empty($filters['keyword'])) {
-            $query->search($filters['keyword']);
-        }
+        $query->when(!empty($filters['keyword']), function ($q) use ($filters) {
+            $q->search($filters['keyword']);
+        });
 
-        if (!empty($filters['source'])) {
-            $query->bySource($filters['source']);
-        }
+        $query->when(!empty($filters['source']), function ($q) use ($filters) {
+            $q->bySource($filters['source']);
+        });
 
-        if (!empty($filters['category'])) {
-            $query->byCategory($filters['category']);
-        }
+        $query->when(!empty($filters['category']), function ($q) use ($filters) {
+            $q->byCategorySlug($filters['category']);
+        });
 
-        if (!empty($filters['author'])) {
-            $query->byAuthor($filters['author']);
-        }
+        $query->when(!empty($filters['author_id']), function ($q) use ($filters) {
+            $q->byAuthor($filters['author_id']);
+        });
 
-        if (!empty($filters['from_date']) || !empty($filters['to_date'])) {
-            $query->betweenDates(
+        $query->when(!empty($filters['from_date']) || !empty($filters['to_date']), function ($q) use ($filters) {
+            $q->betweenDates(
                 $filters['from_date'] ?? null,
                 $filters['to_date'] ?? null
             );
-        }
+        });
     }
 }

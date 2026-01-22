@@ -19,48 +19,41 @@ trait Attributes
     }
 
     /**
-     * Scope for filtering by category.
-     *
-     * @param Builder $query
-     * @param string $category
-     * @return Builder
+     * Scope for filtering by category
      */
-    public function scopeByCategory(Builder $query, string $category): Builder
+    public function scopeByCategory($query, int $categoryId)
     {
-        return $query->where('category', $category);
+        return $query->whereHas('categories', function ($q) use ($categoryId) {
+            $q->where('categories.id', $categoryId);
+        });
     }
 
     /**
-     * Scope for filtering by author.
-     *
-     * @param Builder $query
-     * @param string $author
-     * @return Builder
+     * Scope for filtering by category slug
      */
-    public function scopeByAuthor(Builder $query, string $author): Builder
+    public function scopeByCategorySlug($query, string $slug)
     {
-        return $query->where('author', 'like', "%{$author}%");
+        return $query->whereHas('categories', function ($q) use ($slug) {
+            $q->where('categories.slug', $slug);
+        });
     }
 
     /**
-     * Scope for filtering by date range.
-     *
-     * @param Builder $query
-     * @param string|null $fromDate
-     * @param string|null $toDate
-     * @return Builder
+     * Scope for filtering by author
      */
-    public function scopeBetweenDates(Builder $query, ?string $fromDate, ?string $toDate): Builder
+    public function scopeByAuthor($query, int $authorId)
     {
-        if ($fromDate) {
-            $query->whereDate('published_at', '>=', $fromDate);
-        }
+        return $query->where('author_id', $authorId);
+    }
 
-        if ($toDate) {
-            $query->whereDate('published_at', '<=', $toDate);
-        }
-
-        return $query;
+    /**
+     * Scope for filtering by date range
+     */
+    public function scopeBetweenDates($query, ?string $fromDate, ?string $toDate)
+    {
+        return $query
+            ->when($fromDate, fn($q) => $q->whereDate('published_at', '>=', $fromDate))
+            ->when($toDate, fn($q) => $q->whereDate('published_at', '<=', $toDate));
     }
 
     /**

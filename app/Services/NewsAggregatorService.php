@@ -120,9 +120,6 @@ class NewsAggregatorService
         if ($provider instanceof NewsApiService) {
             foreach (self::CATEGORIES as $category) {
                 $categoryArticles = $provider->fetchByCategory($category);
-                foreach ($categoryArticles as &$article) {
-                    $article['category'] = $category;
-                }
                 $articles = array_merge($articles, $categoryArticles);
             }
         }
@@ -133,53 +130,34 @@ class NewsAggregatorService
             }
         }
 
+        if ($provider instanceof NewYorkTimesService) {
+            foreach (self::SECTIONS as $section) {
+                $articles = array_merge($articles, $provider->fetchBySection($section));
+            }
+        }
+
         return $articles;
     }
 
     /**
-     * Store articles in the database
+     * Store articles in the database using bulk upsert
      */
     protected function storeArticles(array $articles): int
     {
-        $stored = 0;
+        $validArticles = array_filter($articles, function ($article) {
+            return !empty($article['title']) && $article['title'] !== '[Removed]';
+        });
 
-        foreach ($articles as $articleData) {
-            try {
-                // Skip if no title
-                if (empty($articleData['title']) || $articleData['title'] === '[Removed]') {
-                    continue;
-                }
-
-                $this->articleRepository->createOrUpdate($articleData);
-                $stored++;
-            } catch (\Exception $e) {
-                Log::warning("Failed to store article: " . $e->getMessage(), [
-                    'title' => $articleData['title'] ?? 'unknown',
-                ]);
-            }
+        if (empty($validArticles)) {
+            return 0;
         }
 
-        return $stored;
-    }
-
-    /**
-     * Search articles across all providers (live)
-     */
-    public function searchLive(string $query): array
-    {
-        $results = [];
-
-        foreach ($this->providers as $name => $provider) {
-            try {
-                if (method_exists($provider, 'searchArticles')) {
-                    $articles = $provider->searchArticles($query);
-                    $results[$name] = $articles;
-                }
-            } catch (\Exception $e) {
-                Log::error("Search failed for {$name}: " . $e->getMessage());
-            }
+        try {
+            return $this->articleRepository->bulkUpsert(array_values($validArticles));
+        } catch (\Exception $e) {
+            Log::error("Failed to bulk upsert articles: " . $e->getMessage());
+            return 0;
         }
-
-        return $results;
     }
+
 }

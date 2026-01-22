@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UserPreferenceRequest;
 use App\Http\Resources\ArticleCollection;
 use App\Models\UserPreference;
+use App\Services\Response\ResponseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,22 +28,27 @@ class UserPreferenceController extends Controller
     {
         $user = $request->user();
 
-        $preference = UserPreference::firstOrCreate(
-            ['user_id' => $user->id],
-            [
-                'preferred_sources' => [],
-                'preferred_categories' => [],
-                'preferred_authors' => [],
-            ]
-        );
+        $preference = UserPreference::where('user_id', $user->id)->first();
 
-        return response()->json([
-            'data' => [
+        if (!$preference) {
+            return ResponseService::successResponse(
+                'No preferences found',
+                [
+                    'preferred_sources' => [],
+                    'preferred_categories' => [],
+                    'preferred_authors' => [],
+                ]
+            );
+        }
+
+        return ResponseService::successResponse(
+            'Preferences retrieved successfully',
+            [
                 'preferred_sources' => $preference->preferred_sources ?? [],
                 'preferred_categories' => $preference->preferred_categories ?? [],
                 'preferred_authors' => $preference->preferred_authors ?? [],
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -65,14 +71,14 @@ class UserPreferenceController extends Controller
             ]
         );
 
-        return response()->json([
-            'message' => 'Preferences updated successfully',
-            'data' => [
+        return ResponseService::successResponse(
+            'Preferences updated successfully',
+            [
                 'preferred_sources' => $preference->preferred_sources,
                 'preferred_categories' => $preference->preferred_categories,
                 'preferred_authors' => $preference->preferred_authors,
-            ],
-        ]);
+            ]
+        );
     }
 
     /**
@@ -84,12 +90,11 @@ class UserPreferenceController extends Controller
     public function feed(Request $request): ArticleCollection|JsonResponse
     {
         $user = $request->user();
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', config('pagination.per_page'));
 
         $preference = UserPreference::where('user_id', $user->id)->first();
 
         if (!$preference) {
-            // Return general feed if no preferences set
             $articles = $this->articleRepository->getAll([], $perPage);
             return new ArticleCollection($articles);
         }

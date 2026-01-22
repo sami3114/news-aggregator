@@ -133,4 +133,18 @@ class GuardianService extends BaseNewsService
     {
         return $this->fetchArticles(['section' => $section]);
     }
+
+    /**
+     * Get available sections
+     */
+    public function getSections(): array
+    {
+        $response = $this->makeRequest('sections', ['api-key' => $this->apiKey]);
+
+        if (!$response) {
+            return [];
+        }
+
+        return $response['response']['results'] ?? [];
+    }
 }

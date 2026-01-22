@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Models\Article\Attributes;
-use App\Models\UserPreference\Relationships;
+use App\Models\Article\Relationships;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,7 +28,7 @@ class Article extends Model
         'external_id',
         'source',
         'source_name',
-        'author',
+        'author_id',
         'title',
         'description',
         'content',

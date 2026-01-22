@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ArticleFilterRequest;
 use App\Http\Resources\ArticleCollection;
 use App\Http\Resources\ArticleResource;
+use App\Models\Article;
+use App\Services\Response\ResponseService;
 use Illuminate\Http\JsonResponse;
 
 class ArticleController extends Controller
@@ -25,7 +27,7 @@ class ArticleController extends Controller
     public function index(ArticleFilterRequest $request): ArticleCollection
     {
         $filters = $request->validated();
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', config('pagination.per_page'));
 
         $articles = $this->articleRepository->getAll($filters, $perPage);
 
@@ -35,19 +37,15 @@ class ArticleController extends Controller
     /**
      * Get a single article
      *
-     * @param int $id
-     * @return ArticleResource|JsonResponse
+     * @param Article $article
+     * @return ArticleResource
      */
-    public function show(int $id): ArticleResource|JsonResponse
+    public function show(Article $article): ArticleResource
     {
-        try {
-            $article = $this->articleRepository->findById($id);
-            return new ArticleResource($article);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Article not found',
-            ], 404);
-        }
+        // Load relationships
+        $article->load(['author', 'categories']);
+
+        return new ArticleResource($article);
     }
 
     /**
@@ -61,13 +59,11 @@ class ArticleController extends Controller
         $query = $request->input('q');
 
         if (empty($query)) {
-            return response()->json([
-                'message' => 'Search query is required',
-            ], 422);
+            return ResponseService::errorResponse('Search query is required', null, 422);
         }
 
         $filters = $request->validated();
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', config('pagination.per_page'));
 
         $articles = $this->articleRepository->search($query, $filters, $perPage);
 
@@ -83,9 +79,7 @@ class ArticleController extends Controller
     {
         $categories = $this->articleRepository->getCategories();
 
-        return response()->json([
-            'data' => $categories,
-        ]);
+        return ResponseService::successResponse('Categories retrieved successfully', $categories);
     }
 
     /**
@@ -97,9 +91,7 @@ class ArticleController extends Controller
     {
         $sources = $this->articleRepository->getSources();
 
-        return response()->json([
-            'data' => $sources,
-        ]);
+        return ResponseService::successResponse('Sources retrieved successfully', $sources);
     }
 
     /**
@@ -111,8 +103,6 @@ class ArticleController extends Controller
     {
         $authors = $this->articleRepository->getAuthors();
 
-        return response()->json([
-            'data' => $authors,
-        ]);
+        return ResponseService::successResponse('Authors retrieved successfully', $authors);
     }
 }
