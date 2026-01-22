@@ -22,7 +22,26 @@ class UserPreferenceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'preferred_sources' => ['nullable', 'array'],
+            'preferred_sources.*' => ['string', 'max:100'],
+            'preferred_categories' => ['nullable', 'array'],
+            'preferred_categories.*' => ['string', 'max:100'],
+            'preferred_authors' => ['nullable', 'array'],
+            'preferred_authors.*' => ['string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'preferred_sources.array' => 'Preferred sources must be an array.',
+            'preferred_categories.array' => 'Preferred categories must be an array.',
+            'preferred_authors.array' => 'Preferred authors must be an array.',
         ];
     }
 }

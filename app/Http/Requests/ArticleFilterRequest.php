@@ -26,17 +26,17 @@ class ArticleFilterRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
             'source' => ['nullable', 'string', 'max:100'],
-            'author' => ['nullable', 'string', 'max:255'],
+            'author_id' => ['nullable', 'integer', 'exists:authors,id'],
             'from_date' => ['nullable', 'date', 'date_format:Y-m-d'],
             'to_date' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:from_date'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:' . config('pagination.max_per_page')],
         ];
     }
 
     /**
      * Get the error messages for the defined validation rules.
      *
-     * @return string[]
+     * @return array<string, string>
      */
     public function messages(): array
     {
@@ -44,7 +44,8 @@ class ArticleFilterRequest extends FormRequest
             'from_date.date_format' => 'The from date must be in Y-m-d format.',
             'to_date.date_format' => 'The to date must be in Y-m-d format.',
             'to_date.after_or_equal' => 'The to date must be after or equal to the from date.',
-            'per_page.max' => 'Maximum items per page is 100.',
+            'per_page.max' => 'Maximum items per page is ' . config('pagination.max_per_page') . '.',
+            'author_id.exists' => 'The selected author does not exist.',
         ];
     }
 }
