@@ -37,13 +37,27 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 # Start containers
 ./vendor/bin/sail up -d
 
-# Setup application
-./vendor/bin/sail artisan key:generate
-./vendor/bin/sail artisan migrate
+# Install Sanctum API (run once, interactive)
 ./vendor/bin/sail artisan install:api
 
-# Fetch initial articles
-./vendor/bin/sail artisan news:fetch
+# Run setup command (migrate + seed + fetch news)
+./vendor/bin/sail artisan app:setup --seed --fetch
+```
+
+## Setup Command
+
+```bash
+# Basic setup (key generate, migrate, optimize)
+./vendor/bin/sail artisan app:setup
+
+# Setup with database seeding (10 users, 15 articles)
+./vendor/bin/sail artisan app:setup --seed
+
+# Setup with fresh migration (drops all tables)
+./vendor/bin/sail artisan app:setup --fresh --seed
+
+# Full setup (seed + fetch live news)
+./vendor/bin/sail artisan app:setup --seed --fetch
 ```
 
 ## Environment Variables
@@ -54,9 +68,14 @@ Add your API keys to `.env`:
 APP_PORT=8081
 FORWARD_DB_PORT=3307
 
-NEWS_API_KEY=your_newsapi_key
-GUARDIAN_API_KEY=your_guardian_key
-NYT_API_KEY=your_nyt_key
+NEWS_API_BASE_URL=https://newsapi.org/v2/
+NEWS_API_KEY=cd59f487ec4644c487e2f1efbb461c18
+
+GUARDIAN_BASE_URL=https://content.guardianapis.com/
+GUARDIAN_API_KEY=f915cced-03cb-410d-a28a-32a01a30445e
+
+NYT_BASE_URL=https://api.nytimes.com/svc/
+NYT_API_KEY=02kTSs7zjt3EE9DzkfL2W2R4QOjkDo59J2QpcXcoCTcLW0yh
 ```
 
 Get API keys from:
@@ -69,10 +88,22 @@ Get API keys from:
 ```bash
 ./vendor/bin/sail up -d              # Start containers
 ./vendor/bin/sail down               # Stop containers
+./vendor/bin/sail artisan app:setup  # Run setup
 ./vendor/bin/sail artisan news:fetch # Fetch articles
-./vendor/bin/sail artisan migrate    # Run migrations
+./vendor/bin/sail artisan db:seed    # Seed database
 ./vendor/bin/sail shell              # Enter container
 ```
+
+## Seeded Data
+
+When using `--seed` option:
+
+| Data | Count | Details |
+|------|-------|---------|
+| Users | 10 | admin@example.com / test@example.com (password: `password`) |
+| Authors | 8 | Random authors |
+| Categories | 10 | Technology, Business, Health, etc. |
+| Articles | 15 | With relationships to authors & categories |
 
 ## API Endpoints
 
@@ -112,14 +143,16 @@ Get API keys from:
 
 ```
 app/
-├── Console/Commands/          # Artisan commands
+├── Console/Commands/          # Artisan commands (SetupCommand, FetchNewsCommand)
 ├── Contracts/                 # Interfaces
 ├── Http/Controllers/Api/      # API controllers
 ├── Models/                    # Eloquent models
 ├── Repositories/              # Data access layer
 └── Services/
-    ├── NewsAggregatorService.php
     └── NewsProviders/         # News source integrations
+
+database/
+└── seeders/                   # UserSeeder, ArticleSeeder, etc.
 ```
 
 ## Troubleshooting
