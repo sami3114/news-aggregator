@@ -13,67 +13,54 @@ use Illuminate\Http\JsonResponse;
 
 class ArticleController extends Controller
 {
-    public function __construct(protected ArticleRepositoryInterface $articleRepository)
-    {
+    public function __construct(
+        protected ArticleRepositoryInterface $articleRepository
+    ) {
         //
     }
 
     /**
      * Get all articles with optional filters
-     *
-     * @param ArticleFilterRequest $request
-     * @return ArticleCollection
      */
-    public function index(ArticleFilterRequest $request): ArticleCollection
+    public function index(ArticleFilterRequest $request): JsonResponse
     {
         $filters = $request->validated();
         $perPage = $request->input('per_page', config('pagination.per_page'));
 
         $articles = $this->articleRepository->getAll($filters, $perPage);
+        $articleCollection = new ArticleCollection($articles);
 
-        return new ArticleCollection($articles);
+        return ResponseService::successResponse('Articles retrieved successfully', $articleCollection);
     }
 
     /**
      * Get a single article
-     *
-     * @param Article $article
-     * @return ArticleResource
      */
-    public function show(Article $article): ArticleResource
+    public function show(Article $article): JsonResponse
     {
-        // Load relationships
         $article->load(['author', 'categories']);
+        $articleResource = new ArticleResource($article);
 
-        return new ArticleResource($article);
+        return ResponseService::successResponse('Article retrieved successfully', $articleResource);
     }
 
     /**
      * Search articles
-     *
-     * @param ArticleFilterRequest $request
-     * @return ArticleCollection|JsonResponse
      */
-    public function search(ArticleFilterRequest $request): ArticleCollection|JsonResponse
+    public function search(ArticleFilterRequest $request): JsonResponse
     {
         $query = $request->input('q');
-
-        if (empty($query)) {
-            return ResponseService::errorResponse('Search query is required', null, 422);
-        }
-
         $filters = $request->validated();
         $perPage = $request->input('per_page', config('pagination.per_page'));
 
         $articles = $this->articleRepository->search($query, $filters, $perPage);
+        $articleCollection = new ArticleCollection($articles);
 
-        return new ArticleCollection($articles);
+        return ResponseService::successResponse('Articles retrieved successfully', $articleCollection);
     }
 
     /**
      * Get all categories
-     *
-     * @return JsonResponse
      */
     public function categories(): JsonResponse
     {
@@ -84,8 +71,6 @@ class ArticleController extends Controller
 
     /**
      * Get all sources
-     *
-     * @return JsonResponse
      */
     public function sources(): JsonResponse
     {
@@ -96,8 +81,6 @@ class ArticleController extends Controller
 
     /**
      * Get all authors
-     *
-     * @return JsonResponse
      */
     public function authors(): JsonResponse
     {
