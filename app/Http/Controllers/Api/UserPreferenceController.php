@@ -96,7 +96,9 @@ class UserPreferenceController extends Controller
 
         if (!$preference) {
             $articles = $this->articleRepository->getAll([], $perPage);
-            return new ArticleCollection($articles);
+            $articleCollection = new ArticleCollection($articles);
+
+            return ResponseService::successResponse('Personalized feed retrieved successfully', $articleCollection);
         }
 
         $preferences = [
@@ -110,11 +112,14 @@ class UserPreferenceController extends Controller
             empty($preferences['preferred_categories']) &&
             empty($preferences['preferred_authors'])) {
             $articles = $this->articleRepository->getAll([], $perPage);
-            return new ArticleCollection($articles);
+            $articleCollection = new ArticleCollection($articles);
+
+            return ResponseService::successResponse('Personalized feed retrieved successfully', $articleCollection);
         }
 
         $articles = $this->articleRepository->getByPreferences($preferences, $perPage);
+        $articleCollection = new ArticleCollection($articles);
 
-        return new ArticleCollection($articles);
+        return ResponseService::successResponse('Personalized feed retrieved successfully', $articleCollection);
     }
 }

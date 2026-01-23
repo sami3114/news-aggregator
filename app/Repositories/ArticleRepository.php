@@ -264,25 +264,61 @@ class ArticleRepository implements ArticleRepositoryInterface
     {
         $perPage = $perPage ?? config('pagination.per_page');
 
+        $sources = $preferences['preferred_sources'] ?? [];
+        $categoryIds = $this->normalizeCategoryPreferences($preferences['preferred_categories'] ?? []);
+        $authorIds = $this->normalizeAuthorPreferences($preferences['preferred_authors'] ?? []);
+
         $query = $this->model->newQuery()->with(['author', 'categories']);
 
-        $query->when(!empty($preferences['preferred_sources']), function ($q) use ($preferences) {
-            $q->whereIn('source', $preferences['preferred_sources']);
-        });
+        // If no preferences set, return all articles
+        if (empty($sources) && empty($categoryIds) && empty($authorIds)) {
+            return $query->orderBy('published_at', 'desc')->paginate($perPage);
+        }
 
-        $query->when(!empty($preferences['preferred_categories']), function ($q) use ($preferences) {
-            $q->whereHas('categories', function ($categoryQuery) use ($preferences) {
-                $categoryQuery->whereIn('categories.id', $preferences['preferred_categories']);
-            });
-        });
-
-        $query->when(!empty($preferences['preferred_authors']), function ($q) use ($preferences) {
-            $q->whereIn('author_id', $preferences['preferred_authors']);
+        $query->where(function ($q) use ($sources, $categoryIds, $authorIds) {
+            $q->when(!empty($sources), fn($query) => $query->whereIn('source', $sources))
+                ->when(!empty($categoryIds), fn($query) => $query->orWhereHas('categories',
+                    fn($cq) => $cq->whereIn('categories.id', $categoryIds)
+                ), fn($query) => !empty($sources) ? $query : $query)
+                ->when(!empty($authorIds), fn($query) => $query->orWhereIn('author_id', $authorIds));
         });
 
         return $query->orderBy('published_at', 'desc')->paginate($perPage);
     }
 
+    /**
+     * Normalize category preferences - convert slugs/names to IDs
+     */
+    protected function normalizeCategoryPreferences(array $categories): array
+    {
+        if (empty($categories)) return [];
+
+        $allIntegers = collect($categories)->every(fn($item) => is_int($item) || ctype_digit((string) $item));
+
+        return $allIntegers
+            ? array_map('intval', $categories)
+            : Category::where(fn($q) => $q->whereIn('slug', array_map(fn($c) => Str::slug($c), $categories))
+                ->orWhereIn('name', $categories))
+                ->pluck('id')
+                ->toArray();
+    }
+
+    /**
+     * Normalize author preferences - convert slugs/names to IDs
+     */
+    protected function normalizeAuthorPreferences(array $authors): array
+    {
+        if (empty($authors)) return [];
+
+        $allIntegers = collect($authors)->every(fn($item) => is_int($item) || ctype_digit((string) $item));
+
+        return $allIntegers
+            ? array_map('intval', $authors)
+            : Author::where(fn($q) => $q->whereIn('slug', array_map(fn($a) => Str::slug($a), $authors))
+                ->orWhereIn('name', $authors))
+                ->pluck('id')
+                ->toArray();
+    }
     /**
      * Get all unique categories
      */

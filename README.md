@@ -83,28 +83,6 @@ Get API keys from:
 - [The Guardian](https://open-platform.theguardian.com/access/)
 - [New York Times](https://developer.nytimes.com/accounts/create)
 
-## Common Commands
-
-```bash
-./vendor/bin/sail up -d              # Start containers
-./vendor/bin/sail down               # Stop containers
-./vendor/bin/sail artisan app:setup  # Run setup
-./vendor/bin/sail artisan news:fetch # Fetch articles
-./vendor/bin/sail artisan db:seed    # Seed database
-./vendor/bin/sail shell              # Enter container
-```
-
-## Seeded Data
-
-When using `--seed` option:
-
-| Data | Count | Details |
-|------|-------|---------|
-| Users | 10 | admin@example.com / test@example.com (password: `password`) |
-| Authors | 8 | Random authors |
-| Categories | 10 | Technology, Business, Health, etc. |
-| Articles | 15 | With relationships to authors & categories |
-
 ## API Endpoints
 
 **Base URL:** `http://127.0.0.1:8081/api`
