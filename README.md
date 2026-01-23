@@ -98,7 +98,6 @@ Get API keys from:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/articles` | List articles |
-| GET | `/articles/search?q=` | Search |
 | GET | `/articles/{article}` | Single article |
 | GET | `/categories` | List categories |
 | GET | `/sources` | List sources |
@@ -114,7 +113,7 @@ Get API keys from:
 ### Query Parameters
 
 ```
-/articles?keyword=tech&category=business&source=guardian&from_date=2024-01-01&per_page=20
+/articles?q=technology&category=business&source=guardian&from_date=2024-01-01&per_page=20
 ```
 
 ## Project Structure
