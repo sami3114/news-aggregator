@@ -60,16 +60,6 @@ class ArticleController extends Controller
     }
 
     /**
-     * Get all categories
-     */
-    public function categories(): JsonResponse
-    {
-        $categories = $this->articleRepository->getCategories();
-
-        return ResponseService::successResponse('Categories retrieved successfully', $categories);
-    }
-
-    /**
      * Get all sources
      */
     public function sources(): JsonResponse
@@ -77,15 +67,5 @@ class ArticleController extends Controller
         $sources = $this->articleRepository->getSources();
 
         return ResponseService::successResponse('Sources retrieved successfully', $sources);
-    }
-
-    /**
-     * Get all authors
-     */
-    public function authors(): JsonResponse
-    {
-        $authors = $this->articleRepository->getAuthors();
-
-        return ResponseService::successResponse('Authors retrieved successfully', $authors);
     }
 }

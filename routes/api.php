@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthorController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\UserPreferenceController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -36,19 +38,22 @@ Route::prefix('articles')->group(function () {
 });
 
 // Public routes - Meta data
-Route::get('/categories', [ArticleController::class, 'categories'])->name('categories.index');
+Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
 Route::get('/sources', [ArticleController::class, 'sources'])->name('sources.index');
-Route::get('/authors', [ArticleController::class, 'authors'])->name('authors.index');
+Route::get('/authors', [AuthorController::class, 'authors'])->name('authors.index');
 
 // Protected routes - User preferences (requires authentication)
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
-    Route::prefix('user')->group(function () {
-        Route::get('/preferences', [UserPreferenceController::class, 'show'])->name('user.preferences.show');
-        Route::post('/preferences', [UserPreferenceController::class, 'update'])->name('user.preferences.update');
-        Route::get('/feed', [UserPreferenceController::class, 'feed'])->name('user.feed');
+    Route::prefix('user')->name('user.')->group(function () {
+        Route::get('/preferences', [UserPreferenceController::class, 'show'])->name('preferences.show');
+        Route::post('/preferences', [UserPreferenceController::class, 'update'])->name('preferences.update');
+        Route::get('/feed', [UserPreferenceController::class, 'feed'])->name('feed');
     });
+
 });
+

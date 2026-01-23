@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\ArticleRepositoryInterface;
+use App\Contracts\UserPreferenceRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserPreferenceRequest;
 use App\Http\Resources\ArticleCollection;
@@ -13,10 +14,10 @@ use Illuminate\Http\Request;
 
 class UserPreferenceController extends Controller
 {
-    public function __construct(protected ArticleRepositoryInterface $articleRepository)
-    {
-        //
-    }
+    public function __construct(
+        protected UserPreferenceRepositoryInterface $userPreferenceRepository,
+        protected ArticleRepositoryInterface $articleRepository
+    ){}
 
     /**
      * Get user preferences
@@ -28,7 +29,7 @@ class UserPreferenceController extends Controller
     {
         $user = $request->user();
 
-        $preference = UserPreference::where('user_id', $user->id)->first();
+        $preference = $this->userPreferenceRepository->findByUserId($user->id);
 
         if (!$preference) {
             return ResponseService::successResponse(
@@ -62,14 +63,7 @@ class UserPreferenceController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
-        $preference = UserPreference::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'preferred_sources' => $validated['preferred_sources'] ?? [],
-                'preferred_categories' => $validated['preferred_categories'] ?? [],
-                'preferred_authors' => $validated['preferred_authors'] ?? [],
-            ]
-        );
+        $preference = $this->userPreferenceRepository->updateOrCreatePreferences($user->id, $validated);
 
         return ResponseService::successResponse(
             'Preferences updated successfully',
@@ -89,10 +83,11 @@ class UserPreferenceController extends Controller
      */
     public function feed(Request $request): ArticleCollection|JsonResponse
     {
+
         $user = $request->user();
         $perPage = $request->input('per_page', config('pagination.per_page'));
 
-        $preference = UserPreference::where('user_id', $user->id)->first();
+        $preference = $this->userPreferenceRepository->findByUserId($user->id);
 
         if (!$preference) {
             $articles = $this->articleRepository->getAll([], $perPage);
@@ -117,7 +112,7 @@ class UserPreferenceController extends Controller
             return ResponseService::successResponse('Personalized feed retrieved successfully', $articleCollection);
         }
 
-        $articles = $this->articleRepository->getByPreferences($preferences, $perPage);
+        $articles = $this->userPreferenceRepository->getByPreferences($preferences, $perPage);
         $articleCollection = new ArticleCollection($articles);
 
         return ResponseService::successResponse('Personalized feed retrieved successfully', $articleCollection);

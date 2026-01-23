@@ -18,10 +18,10 @@ interface ArticleRepositoryInterface
     /**
      * Bulk upsert articles with authors and categories
      *
-     * @param array $articlesData
+     * @param array $articles
      * @return int Number of articles processed
      */
-    public function bulkUpsert(array $articlesData): int;
+    public function bulkUpsert(array $articles): int;
 
     /**
      * Search articles
@@ -34,33 +34,9 @@ interface ArticleRepositoryInterface
     public function search(string $query, array $filters = [], ?int $perPage = null): LengthAwarePaginator;
 
     /**
-     * Get articles by user preferences
-     *
-     * @param array $preferences
-     * @param int|null $perPage
-     * @return LengthAwarePaginator
-     */
-    public function getByPreferences(array $preferences, ?int $perPage = null): LengthAwarePaginator;
-
-    /**
-     * Get all categories.
-     *
-     * @return array
-     */
-    public function getCategories(): array;
-
-    /**
      * Get all sources.
      *
      * @return array
      */
     public function getSources(): array;
-
-    /**
-     * Get all authors.
-     *
-     * @return array
-     */
-    public function getAuthors(): array;
-
 }
