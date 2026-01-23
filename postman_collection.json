@@ -92,10 +92,12 @@
                                     "if (jsonData.data && jsonData.data.token) {",
                                     "    pm.collectionVariables.set('token', jsonData.data.token);",
                                     "    console.log('Token set: ' + jsonData.data.token);",
-                                    "} else if (jsonData.token) {",
+                                    "}",
+                                    "else if (jsonData.token) {",
                                     "    pm.collectionVariables.set('token', jsonData.token);",
                                     "    console.log('Token set: ' + jsonData.token);",
-                                    "} else {",
+                                    "}",
+                                    "else {",
                                     "    console.log('No token found in response');",
                                     "    console.log('Response:', JSON.stringify(jsonData));",
                                     "}"
@@ -170,7 +172,7 @@
                     }
                 },
                 {
-                    "name": "Get Articles with Filters",
+                    "name": "Get Articles with Filters & Search",
                     "request": {
                         "method": "GET",
                         "header": [
@@ -180,7 +182,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{base_url}}/articles?category=technology&source=newsapi&from_date=2024-01-01&per_page=10",
+                            "raw": "{{base_url}}/articles?category=technology&source=newsapi&from_date=2024-01-01&q=technology&per_page=10",
                             "host": ["{{base_url}}"],
                             "path": ["articles"],
                             "query": [
@@ -197,31 +199,12 @@
                                     "value": "2024-01-01"
                                 },
                                 {
-                                    "key": "per_page",
-                                    "value": "10"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Search Articles",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/articles/search?q=technology",
-                            "host": ["{{base_url}}"],
-                            "path": ["articles", "search"],
-                            "query": [
-                                {
                                     "key": "q",
                                     "value": "technology"
+                                },
+                                {
+                                    "key": "per_page",
+                                    "value": "10"
                                 }
                             ]
                         }

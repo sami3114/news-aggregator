@@ -6,8 +6,6 @@ use App\Contracts\ArticleRepositoryInterface;
 use App\Contracts\AuthorRepositoryInterface;
 use App\Contracts\CategoryRepositoryInterface;
 use App\Models\Article;
-use App\Models\Author;
-use App\Models\Category;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +22,7 @@ class ArticleRepository implements ArticleRepositoryInterface
     ){}
 
     /**
-     * Get all articles with optional filters
+     * Get all articles with optional filters & search
      */
     public function getAll(array $filters = [], ?int $perPage = null): LengthAwarePaginator
     {
@@ -189,21 +187,6 @@ class ArticleRepository implements ArticleRepositoryInterface
     }
 
     /**
-     * Search articles by keyword
-     */
-    public function search(string $query, array $filters = [], ?int $perPage = null): LengthAwarePaginator
-    {
-        $perPage = $perPage ?? config('pagination.per_page');
-
-        $articleQuery = $this->model->newQuery()->with(['author', 'categories']);
-
-        $articleQuery->search($query);
-        $this->applyFilters($articleQuery, $filters);
-
-        return $articleQuery->orderBy('published_at', 'desc')->paginate($perPage);
-    }
-
-    /**
      * Get all unique sources
      */
     public function getSources(): array
@@ -224,6 +207,10 @@ class ArticleRepository implements ArticleRepositoryInterface
      */
     protected function applyFilters($query, array $filters): void
     {
+        $query->when(!empty($filters['q']), function ($q) use ($filters) {
+            $q->search($filters['q']);
+        });
+
         $query->when(!empty($filters['keyword']), function ($q) use ($filters) {
             $q->search($filters['keyword']);
         });

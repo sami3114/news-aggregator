@@ -45,21 +45,6 @@ class ArticleController extends Controller
     }
 
     /**
-     * Search articles
-     */
-    public function search(ArticleFilterRequest $request): JsonResponse
-    {
-        $query = $request->input('q');
-        $filters = $request->validated();
-        $perPage = $request->input('per_page', config('pagination.per_page'));
-
-        $articles = $this->articleRepository->search($query, $filters, $perPage);
-        $articleCollection = new ArticleCollection($articles);
-
-        return ResponseService::successResponse('Articles retrieved successfully', $articleCollection);
-    }
-
-    /**
      * Get all sources
      */
     public function sources(): JsonResponse

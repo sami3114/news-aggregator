@@ -7,7 +7,6 @@ use App\Contracts\UserPreferenceRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserPreferenceRequest;
 use App\Http\Resources\ArticleCollection;
-use App\Models\UserPreference;
 use App\Services\Response\ResponseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

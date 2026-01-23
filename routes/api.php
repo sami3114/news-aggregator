@@ -33,7 +33,6 @@ Route::prefix('auth')->group(function () {
 // Public routes - Articles
 Route::prefix('articles')->group(function () {
     Route::get('/', [ArticleController::class, 'index'])->name('articles.index');
-    Route::get('/search', [ArticleController::class, 'search'])->name('articles.search');
     Route::get('/{article}', [ArticleController::class, 'show'])->name('articles.show');
 });
 
@@ -56,4 +55,3 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 });
-

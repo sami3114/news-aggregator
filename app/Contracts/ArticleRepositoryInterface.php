@@ -24,16 +24,6 @@ interface ArticleRepositoryInterface
     public function bulkUpsert(array $articles): int;
 
     /**
-     * Search articles
-     *
-     * @param string $query
-     * @param array $filters
-     * @param int|null $perPage
-     * @return LengthAwarePaginator
-     */
-    public function search(string $query, array $filters = [], ?int $perPage = null): LengthAwarePaginator;
-
-    /**
      * Get all sources.
      *
      * @return array
