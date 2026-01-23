@@ -65,7 +65,6 @@ class NewYorkTimesService extends BaseNewsService
             return null;
         }
 
-        // Remove "By " prefix if present
         return preg_replace('/^By\s+/i', '', $byline);
     }
 
@@ -80,14 +79,12 @@ class NewYorkTimesService extends BaseNewsService
             return null;
         }
 
-        // Try to find a medium-sized image
         foreach ($multimedia as $media) {
             if (isset($media['format']) && $media['format'] === 'Large Thumbnail') {
                 return $media['url'] ?? null;
             }
         }
 
-        // Fall back to first image
         return $multimedia[0]['url'] ?? null;
     }
 
@@ -146,44 +143,6 @@ class NewYorkTimesService extends BaseNewsService
         $articles = $this->extractArticles($response);
 
         return array_map(fn($article) => $this->transformArticle($article), $articles);
-    }
-
-    /**
-     * Search articles using Article Search API
-     *
-     * @param string $query
-     * @param array $params
-     * @return array
-     */
-    public function searchArticles(string $query, array $params = []): array
-    {
-        $requestParams = [
-            'api-key' => $this->apiKey,
-            'q' => $query,
-            'sort' => $params['sort'] ?? 'newest',
-        ];
-
-        if (!empty($params['begin_date'])) {
-            $requestParams['begin_date'] = $params['begin_date'];
-        }
-
-        if (!empty($params['end_date'])) {
-            $requestParams['end_date'] = $params['end_date'];
-        }
-
-        if (!empty($params['fq'])) {
-            $requestParams['fq'] = $params['fq'];
-        }
-
-        $response = $this->makeRequest('search/v2/articlesearch.json', $requestParams);
-
-        if (!$response) {
-            return [];
-        }
-
-        $docs = $response['response']['docs'] ?? [];
-
-        return array_map(fn($doc) => $this->transformSearchResult($doc), $docs);
     }
 
     /**
