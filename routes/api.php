@@ -37,9 +37,9 @@ Route::prefix('articles')->group(function () {
 });
 
 // Public routes - Meta data
-Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
 Route::get('/sources', [ArticleController::class, 'sources'])->name('sources.index');
-Route::get('/authors', [AuthorController::class, 'authors'])->name('authors.index');
+Route::get('/categories', CategoryController::class)->name('categories.index');
+Route::get('/authors', AuthorController::class)->name('authors.index');
 
 // Protected routes - User preferences (requires authentication)
 Route::middleware('auth:sanctum')->group(function () {

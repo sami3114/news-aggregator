@@ -15,9 +15,9 @@ class CategoryController extends Controller
     }
 
     /**
-     * Get all categories
+     * Invoke controller
      */
-    public function index(): JsonResponse
+    public function __invoke(): JsonResponse
     {
         $categories = $this->categoryRepository->getCategories();
 

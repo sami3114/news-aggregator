@@ -16,9 +16,9 @@ class AuthorController extends Controller
 
 
     /**
-     * Get all authors
+     * Invoke controller
      */
-    public function authors(): JsonResponse
+    public function __invoke(): JsonResponse
     {
         $authors = $this->authorRepository->getAuthors();
 
