@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AuthorController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\UserFeedController;
 use App\Http\Controllers\Api\UserPreferenceController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -51,7 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('user')->name('user.')->group(function () {
         Route::get('/preferences', [UserPreferenceController::class, 'show'])->name('preferences.show');
         Route::post('/preferences', [UserPreferenceController::class, 'update'])->name('preferences.update');
-        Route::get('/feed', [UserPreferenceController::class, 'feed'])->name('feed');
+        Route::get('/feed',UserFeedController::class)->name('feed');
     });
 
 });
