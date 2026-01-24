@@ -19,9 +19,11 @@ interface ArticleRepositoryInterface
      * Bulk upsert articles with authors and categories
      *
      * @param array $articles
+     * @param array $categoryPivot
      * @return int Number of articles processed
      */
-    public function bulkUpsert(array $articles): int;
+    public function bulkUpsert(array $articles, array $categoryPivot): int;
+
 
     /**
      * Get all sources.

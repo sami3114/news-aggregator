@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Contracts\ArticleRepositoryInterface;
 use App\Contracts\NewsServiceInterface;
 use App\Services\NewsProviders\GuardianService;
 use App\Services\NewsProviders\NewsApiService;
@@ -31,7 +30,7 @@ class NewsAggregatorService
         'culture',
     ];
 
-    public function __construct(protected ArticleRepositoryInterface $articleRepository)
+    public function __construct(protected ArticleService $articleService)
     {
         $this->registerProviders();
     }
@@ -83,10 +82,10 @@ class NewsAggregatorService
                 $results['success'][$name] = $count;
                 $results['total_articles'] += $count;
 
-                Log::info("Fetched {$count} articles from {$name}");
+                Log::info("Fetched & stored {$count} articles from {$name}");
             } catch (\Exception $e) {
                 $results['failed'][$name] = $e->getMessage();
-                Log::error("Failed to fetch from {$name}: " . $e->getMessage());
+                Log::error("Failed to fetch from {$name}: {$e->getMessage()}");
             }
         }
 
@@ -140,7 +139,7 @@ class NewsAggregatorService
     }
 
     /**
-     * Store articles in the database using bulk upsert
+     * Store articles
      */
     protected function storeArticles(array $articles): int
     {
@@ -153,9 +152,9 @@ class NewsAggregatorService
         }
 
         try {
-            return $this->articleRepository->bulkUpsert(array_values($validArticles));
+            return $this->articleService->store(array_values($validArticles));
         } catch (\Exception $e) {
-            Log::error("Failed to bulk upsert articles: " . $e->getMessage());
+            Log::error('Failed to store articles: '.$e->getMessage());
             return 0;
         }
     }

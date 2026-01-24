@@ -3,11 +3,8 @@
 namespace App\Repositories;
 
 use App\Contracts\ArticleRepositoryInterface;
-use App\Contracts\AuthorRepositoryInterface;
-use App\Contracts\CategoryRepositoryInterface;
 use App\Models\Article;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class ArticleRepository implements ArticleRepositoryInterface
@@ -15,11 +12,8 @@ class ArticleRepository implements ArticleRepositoryInterface
     /**
      * Create a new class instance.
      */
-    public function __construct(
-        protected Article $model,
-        protected AuthorRepositoryInterface $authorRepository,
-        protected CategoryRepositoryInterface $categoryRepository
-    ){}
+    public function __construct(protected Article $model)
+    {}
 
     /**
      * Get all articles with optional filters & search
@@ -39,151 +33,35 @@ class ArticleRepository implements ArticleRepositoryInterface
      * Bulk upsert articles with authors and categories
      *
      * @param array $articles
-     * @return int Number of articles processed
+     * @param array $categoryPivot
+     * @return int
      */
-    public function bulkUpsert(array $articles): int
+    public function bulkUpsert(array $articles, array $categoryPivot): int
     {
-        if (empty($articles)) return 0;
-
-        $articles = $this->deduplicateArticles($articles);
-
-        $now = now();
-
-        $authors = [];
-        $categories = [];
-        $preparedArticles = [];
-
-        foreach ($articles as $article)
-        {
-            $authorSlug = null;
-            if (!empty($article['author_name'])) {
-                $authorSlug = Str::slug($article['author_name']);
-                $authors[$authorSlug] = [
-                    'name' => $article['author_name'],
-                    'slug' => $authorSlug,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-            }
-
-            foreach ($article['categories'] ?? [] as $cat) {
-                $slug = Str::slug($cat);
-                $categories[$slug] = [
-                    'name' => ucfirst($cat),
-                    'slug' => $slug,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-            }
-
-            $preparedArticles[] = [
-                'external_id'  => $article['external_id'],
-                'source'       => $article['source'],
-                'source_name'  => $article['source_name'] ?? null,
-                'author_slug'  => $authorSlug,
-                'title'        => $article['title'],
-                'description'  => $article['description'] ?? null,
-                'content'      => $article['content'] ?? null,
-                'url'          => $article['url'],
-                'image_url'    => $article['image_url'] ?? null,
-                'published_at' => $article['published_at'] ?? $now,
-                'created_at'   => $now,
-                'updated_at'   => $now,
-            ];
-        }
-
-        return DB::transaction(function () use ($authors, $categories, $preparedArticles, $articles) {
-
-            // Authors
-            $authorMap = $this->authorRepository->upsertAndMap(array_values($authors));
-
-            // Categories
-            $categoryMap = $this->categoryRepository->upsertAndMap(array_values($categories));
-
-            // Final article payload
-            $finalArticles = collect($preparedArticles)->map(function ($a) use ($authorMap) {
-                return [
-                    'external_id'  => $a['external_id'],
-                    'source'       => $a['source'],
-                    'source_name'  => $a['source_name'],
-                    'author_id'    => $a['author_slug'] ? ($authorMap[$a['author_slug']] ?? null) : null,
-                    'title'        => $a['title'],
-                    'description'  => $a['description'],
-                    'content'      => $a['content'],
-                    'url'          => $a['url'],
-                    'image_url'    => $a['image_url'],
-                    'published_at' => $a['published_at'],
-                    'created_at'   => $a['created_at'],
-                    'updated_at'   => $a['updated_at'],
-                ];
-            })->toArray();
-
-            Article::upsert(
-                $finalArticles,
-                ['external_id', 'source'],
-                ['source_name','author_id','title','description','content','url','image_url','published_at','updated_at']
-            );
-
-            $this->syncCategories($articles, $categoryMap);
-
-            return count($articles);
-        });
-    }
-
-    /**
-     * Sync categories for articles
-     *
-     * @param array $articles
-     * @param array $categoryMap
-     * @return void
-     */
-    protected function syncCategories(array $articles, array $categoryMap): void
-    {
-        if (empty($categoryMap)) return;
-
-        $articleIds = Article::whereIn('external_id', array_column($articles, 'external_id'))
-            ->pluck('id', 'external_id');
-
-        $pivot = [];
-
-        foreach ($articles as $article) {
-            foreach ($article['categories'] ?? [] as $cat) {
-                $slug = Str::slug($cat);
-                if (isset($categoryMap[$slug], $articleIds[$article['external_id']])) {
-                    $pivot[] = [
-                        'article_id'  => $articleIds[$article['external_id']],
-                        'category_id' => $categoryMap[$slug],
-                    ];
-                }
-            }
-        }
-
-        DB::table('article_category')->upsert(
-            $pivot,
-            ['article_id', 'category_id']
+        Article::upsert(
+            $articles,
+            ['external_id', 'source'],
+            [
+                'source_name',
+                'author_id',
+                'title',
+                'description',
+                'content',
+                'url',
+                'image_url',
+                'published_at',
+                'updated_at'
+            ]
         );
-    }
-    /**
-     * Deduplicate articles by external_id, merging categories
-     */
-    protected function deduplicateArticles(array $articles): array
-    {
-        $unique = [];
 
-        foreach ($articles as $article) {
-            $key = $article['external_id'].'|'.$article['source'];
-
-            if (!isset($unique[$key])) {
-                $unique[$key] = $article;
-            } else {
-                $unique[$key]['categories'] = array_unique(array_merge(
-                    $unique[$key]['categories'] ?? [],
-                    $article['categories'] ?? []
-                ));
-            }
+        if (!empty($categoryPivot)) {
+            DB::table('article_category')->upsert(
+                $categoryPivot,
+                ['article_id', 'category_id']
+            );
         }
 
-        return array_values($unique);
+        return count($articles);
     }
 
     /**
