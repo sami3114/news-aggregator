@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\UserPreferenceRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Response\ResponseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -11,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        protected UserPreferenceRepositoryInterface $userPreferenceRepository
+    ){}
+
     /**
      * Register a new user
      *
@@ -31,17 +37,11 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'User registered successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'token' => $token,
-        ], 201);
+        return ResponseService::successResponse(
+            'User registered successfully',
+            null,
+            201
+        );
     }
 
     /**
@@ -68,15 +68,15 @@ class AuthController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => [
+        return ResponseService::successResponse(
+            'Login successful',
+            [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-            ],
-            'token' => $token,
-        ]);
+                'token' => $token,
+            ]
+        );
     }
 
     /**
@@ -89,25 +89,34 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out successfully',
-        ]);
+        return ResponseService::successResponse('Logged out successfully');
     }
 
     /**
-     * Get authenticated user
+     * Get authenticated user with preferences
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function user(Request $request): JsonResponse
     {
-        return response()->json([
-            'user' => [
-                'id' => $request->user()->id,
-                'name' => $request->user()->name,
-                'email' => $request->user()->email,
-            ],
-        ]);
+        $user = $request->user();
+        $preference = $this->userPreferenceRepository->findByUserId($user->id);
+
+        return ResponseService::successResponse(
+            'User retrieved successfully',
+            [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+                'preferences' => [
+                    'preferred_sources' => $preference?->preferred_sources ?? [],
+                    'preferred_categories' => $preference?->preferred_categories ?? [],
+                    'preferred_authors' => $preference?->preferred_authors ?? [],
+                ],
+            ]
+        );
     }
 }
