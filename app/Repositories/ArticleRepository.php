@@ -20,13 +20,17 @@ class ArticleRepository implements ArticleRepositoryInterface
      */
     public function getAll(array $filters = [], ?int $perPage = null): LengthAwarePaginator
     {
-        $perPage = $perPage ?? config('pagination.per_page');
+        $query = $this->model->with(['author', 'categories']);
 
-        $query = $this->model->newQuery()->with(['author', 'categories']);
+        $query->when($filters['q'] ?? $filters['keyword'] ?? null, fn($q, $search) => $q->search($search))
+            ->when($filters['source'] ?? null, fn($q, $source) => $q->bySource($source))
+            ->when($filters['category'] ?? null, fn($q, $category) => $q->byCategorySlug($category))
+            ->when($filters['author_id'] ?? null, fn($q, $author) => $q->byAuthor($author))
+            ->when($filters['from_date'] ?? $filters['to_date'] ?? null,
+                fn($q) => $q->betweenDates($filters['from_date'] ?? null, $filters['to_date'] ?? null));
 
-        $this->applyFilters($query, $filters);
-
-        return $query->orderBy('published_at', 'desc')->paginate($perPage);
+        return $query->orderBy('published_at', 'desc')
+            ->paginate($perPage ?? config('pagination.per_page'));
     }
 
     /**
@@ -54,11 +58,8 @@ class ArticleRepository implements ArticleRepositoryInterface
             ]
         );
 
-        if (!empty($categoryPivot)) {
-            DB::table('article_category')->upsert(
-                $categoryPivot,
-                ['article_id', 'category_id']
-            );
+        if ($categoryPivot) {
+            DB::table('article_category')->upsert($categoryPivot, ['article_id', 'category_id']);
         }
 
         return count($articles);
@@ -78,38 +79,5 @@ class ArticleRepository implements ArticleRepositoryInterface
                 'name' => $item->source_name,
             ])
             ->toArray();
-    }
-
-    /**
-     * Apply filters to query using when()
-     */
-    protected function applyFilters($query, array $filters): void
-    {
-        $query->when(!empty($filters['q']), function ($q) use ($filters) {
-            $q->search($filters['q']);
-        });
-
-        $query->when(!empty($filters['keyword']), function ($q) use ($filters) {
-            $q->search($filters['keyword']);
-        });
-
-        $query->when(!empty($filters['source']), function ($q) use ($filters) {
-            $q->bySource($filters['source']);
-        });
-
-        $query->when(!empty($filters['category']), function ($q) use ($filters) {
-            $q->byCategorySlug($filters['category']);
-        });
-
-        $query->when(!empty($filters['author_id']), function ($q) use ($filters) {
-            $q->byAuthor($filters['author_id']);
-        });
-
-        $query->when(!empty($filters['from_date']) || !empty($filters['to_date']), function ($q) use ($filters) {
-            $q->betweenDates(
-                $filters['from_date'] ?? null,
-                $filters['to_date'] ?? null
-            );
-        });
     }
 }

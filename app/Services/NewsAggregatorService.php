@@ -32,14 +32,6 @@ class NewsAggregatorService
 
     public function __construct(protected ArticleService $articleService)
     {
-        $this->registerProviders();
-    }
-
-    /**
-     * Register all news providers
-     */
-    protected function registerProviders(): void
-    {
         $this->providers = [
             'newsapi' => new NewsApiService(),
             'guardian' => new GuardianService(),
@@ -76,13 +68,10 @@ class NewsAggregatorService
 
         foreach ($this->providers as $name => $provider) {
             try {
-                $articles = $this->fetchFromProvider($provider);
-                $count = $this->storeArticles($articles);
-
+                $count = $this->fetchFromProvider($provider);
                 $results['success'][$name] = $count;
                 $results['total_articles'] += $count;
-
-                Log::info("Fetched & stored {$count} articles from {$name}");
+                Log::info("Fetched {$count} articles from {$name}");
             } catch (\Exception $e) {
                 $results['failed'][$name] = $e->getMessage();
                 Log::error("Failed to fetch from {$name}: {$e->getMessage()}");
@@ -103,60 +92,25 @@ class NewsAggregatorService
             throw new \InvalidArgumentException("Unknown news source: {$sourceName}");
         }
 
-        $articles = $this->fetchFromProvider($provider);
-        return $this->storeArticles($articles);
+        return $this->fetchFromProvider($provider);
     }
 
-    /**
-     * Fetch articles from a provider
-     */
-    protected function fetchFromProvider(NewsServiceInterface $provider): array
+    protected function fetchFromProvider(NewsServiceInterface $provider): int
     {
-        $articles = [];
-
-        $articles = array_merge($articles, $provider->fetchArticles());
+        $articles = $provider->fetchArticles();
 
         if ($provider instanceof NewsApiService) {
             foreach (self::CATEGORIES as $category) {
-                $categoryArticles = $provider->fetchByCategory($category);
-                $articles = array_merge($articles, $categoryArticles);
+                $articles = array_merge($articles, $provider->fetchByCategory($category));
             }
         }
 
-        if ($provider instanceof GuardianService) {
+        if ($provider instanceof GuardianService || $provider instanceof NewYorkTimesService) {
             foreach (self::SECTIONS as $section) {
                 $articles = array_merge($articles, $provider->fetchBySection($section));
             }
         }
 
-        if ($provider instanceof NewYorkTimesService) {
-            foreach (self::SECTIONS as $section) {
-                $articles = array_merge($articles, $provider->fetchBySection($section));
-            }
-        }
-
-        return $articles;
+        return $this->articleService->bulkInsert($articles);
     }
-
-    /**
-     * Store articles
-     */
-    protected function storeArticles(array $articles): bool
-    {
-        $validArticles = array_filter($articles, function ($article) {
-            return !empty($article['title']) && $article['title'] !== '[Removed]';
-        });
-
-        if (empty($validArticles)) {
-            return false;
-        }
-
-        try {
-            return $this->articleService->bulkInsert($validArticles);
-        } catch (\Exception $e) {
-            Log::error('Failed to store articles: '.$e->getMessage());
-            return false;
-        }
-    }
-
 }
