@@ -141,21 +141,21 @@ class NewsAggregatorService
     /**
      * Store articles
      */
-    protected function storeArticles(array $articles): int
+    protected function storeArticles(array $articles): bool
     {
         $validArticles = array_filter($articles, function ($article) {
             return !empty($article['title']) && $article['title'] !== '[Removed]';
         });
 
         if (empty($validArticles)) {
-            return 0;
+            return false;
         }
 
         try {
-            return $this->articleService->store(array_values($validArticles));
+            return $this->articleService->bulkInsert($validArticles);
         } catch (\Exception $e) {
             Log::error('Failed to store articles: '.$e->getMessage());
-            return 0;
+            return false;
         }
     }
 

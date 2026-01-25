@@ -18,45 +18,12 @@ class UserPreferenceController extends Controller
     ){}
 
     /**
-     * Get user preferences
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function show(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        $preference = $this->userPreferenceRepository->findByUserId($user->id);
-
-        if (!$preference) {
-            return ResponseService::successResponse(
-                'No preferences found',
-                [
-                    'preferred_sources' => [],
-                    'preferred_categories' => [],
-                    'preferred_authors' => [],
-                ]
-            );
-        }
-
-        return ResponseService::successResponse(
-            'Preferences retrieved successfully',
-            [
-                'preferred_sources' => $preference->preferred_sources ?? [],
-                'preferred_categories' => $preference->preferred_categories ?? [],
-                'preferred_authors' => $preference->preferred_authors ?? [],
-            ]
-        );
-    }
-
-    /**
      * Update user preferences
      *
      * @param UserPreferenceRequest $request
      * @return JsonResponse
      */
-    public function update(UserPreferenceRequest $request): JsonResponse
+    public function __invoke(UserPreferenceRequest $request): JsonResponse
     {
         $user = $request->user();
         $validated = $request->validated();

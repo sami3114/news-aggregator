@@ -27,8 +27,8 @@ class UserPreferenceRepository implements UserPreferenceRepositoryInterface
         $perPage = $perPage ?? config('pagination.per_page');
 
         $sources = $preferences['preferred_sources'] ?? [];
-        $categoryIds = $this->normalizeCategoryPreferences($preferences['preferred_categories'] ?? []);
-        $authorIds = $this->normalizeAuthorPreferences($preferences['preferred_authors'] ?? []);
+        $categoryIds = $preferences['preferred_categories'] ?? [];
+        $authorIds = $preferences['preferred_authors'] ?? [];
 
         $query = Article::query()->with(['author', 'categories']);
 
@@ -46,40 +46,6 @@ class UserPreferenceRepository implements UserPreferenceRepositoryInterface
         });
 
         return $query->orderBy('published_at', 'desc')->paginate($perPage);
-    }
-
-    /**
-     * Normalize category preferences
-     */
-    protected function normalizeCategoryPreferences(array $categories): array
-    {
-        if (empty($categories)) return [];
-
-        $allIntegers = collect($categories)->every(fn($item) => is_int($item) || ctype_digit((string) $item));
-
-        return $allIntegers
-            ? array_map('intval', $categories)
-            : Category::where(fn($q) => $q->whereIn('slug', array_map(fn($c) => Str::slug($c), $categories))
-                ->orWhereIn('name', $categories))
-                ->pluck('id')
-                ->toArray();
-    }
-
-    /**
-     * Normalize author preferences
-     */
-    protected function normalizeAuthorPreferences(array $authors): array
-    {
-        if (empty($authors)) return [];
-
-        $allIntegers = collect($authors)->every(fn($item) => is_int($item) || ctype_digit((string) $item));
-
-        return $allIntegers
-            ? array_map('intval', $authors)
-            : Author::where(fn($q) => $q->whereIn('slug', array_map(fn($a) => Str::slug($a), $authors))
-                ->orWhereIn('name', $authors))
-                ->pluck('id')
-                ->toArray();
     }
 
     public function findByUserId(int $userId): ?UserPreference

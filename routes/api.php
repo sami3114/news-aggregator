@@ -24,11 +24,6 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
-
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
-        Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
-    });
 });
 
 // Public routes - Articles
@@ -45,13 +40,11 @@ Route::get('/authors', AuthorController::class)->name('authors.index');
 // Protected routes - User preferences (requires authentication)
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+    Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
+    Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
 
     Route::prefix('user')->name('user.')->group(function () {
-        Route::get('/preferences', [UserPreferenceController::class, 'show'])->name('preferences.show');
-        Route::post('/preferences', [UserPreferenceController::class, 'update'])->name('preferences.update');
+        Route::post('/preferences', UserPreferenceController::class)->name('preferences.update');
         Route::get('/feed',UserFeedController::class)->name('feed');
     });
 
