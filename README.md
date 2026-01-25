@@ -42,6 +42,9 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 
 # Run setup command (migrate + seed + fetch news)
 ./vendor/bin/sail artisan app:setup --seed --fetch
+
+# Run test
+./vendor/bin/sail artisan test
 ```
 
 ## Setup Command
