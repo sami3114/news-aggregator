@@ -44,7 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user'])->name('auth.user');
 
     Route::prefix('user')->name('user.')->group(function () {
-        Route::post('/preferences', UserPreferenceController::class)->name('preferences.update');
+        Route::patch('/preferences', UserPreferenceController::class)->name('preferences.update');
         Route::get('/feed',UserFeedController::class)->name('feed');
     });
 

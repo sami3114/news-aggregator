@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UserPreferenceRequest extends FormRequest
 {
@@ -29,6 +30,26 @@ class UserPreferenceRequest extends FormRequest
             'preferred_authors' => ['nullable', 'array'],
             'preferred_authors.*' => ['integer', 'exists:authors,id'],
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            if (!$this->has('preferred_sources') &&
+                !$this->has('preferred_categories') &&
+                !$this->has('preferred_authors')) {
+                $validator->errors()->add(
+                    'preferences',
+                    'At least one preference field must be provided.'
+                );
+            }
+        });
     }
 
     /**
