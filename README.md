@@ -88,11 +88,12 @@ Get API keys from:
 **Base URL:** `http://127.0.0.1:8081/api`
 
 ### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/register` | Register user |
-| POST | `/auth/login` | Login |
-| POST | `/auth/logout` | Logout (Auth) |
+| Method | Endpoint         | Description              |
+|--------|------------------|--------------------------|
+| POST | `/auth/register` | Register user            |
+| POST | `/auth/login`    | Login                    |
+| POST | `/auth/logout`   | Logout (Auth)            |
+| POST | `/user`          | Current User with Preference |
 
 ### Articles
 | Method | Endpoint | Description |
@@ -106,7 +107,6 @@ Get API keys from:
 ### User Preferences (Auth Required)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/user/preferences` | Get preferences |
 | POST | `/user/preferences` | Update preferences |
 | GET | `/user/feed` | Personalized feed |
 
