@@ -289,32 +289,9 @@
             "name": "User Preferences",
             "item": [
                 {
-                    "name": "Get Preferences",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Accept",
-                                "value": "application/json",
-                                "type": "text"
-                            },
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer {{token}}",
-                                "type": "text"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{base_url}}/user/preferences",
-                            "host": ["{{base_url}}"],
-                            "path": ["user", "preferences"]
-                        }
-                    }
-                },
-                {
                     "name": "Update Preferences",
                     "request": {
-                        "method": "POST",
+                        "method": "PATCH",
                         "header": [
                             {
                                 "key": "Accept",
@@ -334,14 +311,14 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"preferred_sources\": [\"newsapi\", \"guardian\"],\n    \"preferred_categories\": [\"technology\", \"science\", \"business\"],\n    \"preferred_authors\": [\"John Smith\", \"Sarah Johnson\"]\n}"
+                            "raw": "{\n  \"preferred_sources\": [\"newsapi\", \"guardian\"],\n  \"preferred_categories\": [1, 3, 5],\n  \"preferred_authors\": [1, 2]\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/user/preferences",
                             "host": ["{{base_url}}"],
                             "path": ["user", "preferences"]
                         },
-                        "description": "Update preferences using names/slugs for categories and authors"
+                        "description": "Update user preferences using IDs for categories and authors"
                     }
                 },
                 {
